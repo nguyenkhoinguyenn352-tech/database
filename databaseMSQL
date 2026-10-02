@@ -1,0 +1,67 @@
+-- Create database
+CREATE DATABASE IF NOT EXISTS work_logger_db
+CHARACTER SET utf8mb4 
+COLLATE utf8mb4_unicode_ci;
+
+USE work_logger_db;
+
+-- 1. Table: users (Quản lý người dùng)
+CREATE TABLE users (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- 2. Table: projects (Lớp học / Dự án / Cuộc họp)
+CREATE TABLE projects (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    title VARCHAR(150) NOT NULL,
+    type ENUM('Class', 'Project', 'Meeting') NOT NULL DEFAULT 'Project',
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- 3. Table: categories (Danh mục chính)
+CREATE TABLE categories (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NULL, -- NULL = System-defined, Non-NULL = Custom user category
+    name VARCHAR(100) NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- 4. Table: subcategories (Danh mục phụ)
+CREATE TABLE subcategories (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    category_id BIGINT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- 5. Table: work_logs (Nhật ký công việc - Bảng trung tâm)
+CREATE TABLE work_logs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    project_id BIGINT NULL, -- Tùy chọn (có thể log công việc tự do không thuộc project nào)
+    category_id BIGINT NOT NULL,
+    subcategory_id BIGINT NULL,
+    log_date DATE NOT NULL,
+    hours DECIMAL(4, 2) NOT NULL,
+    time_of_day ENUM('Morning', 'Afternoon', 'Evening', 'Night') NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    -- Foreign Key constraints
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT,
+    FOREIGN KEY (subcategory_id) REFERENCES subcategories(id) ON DELETE SET NULL,
+    
+    -- Indexes tối ưu hiệu năng truy vấn cho trang Reports & Work History
+    INDEX idx_user_date (user_id, log_date),
+    INDEX idx_category (category_id)
+) ENGINE=InnoDB;
